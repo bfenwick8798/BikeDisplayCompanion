@@ -6,11 +6,8 @@ kotlin {
     jvmToolchain(17)
 }
 
+
 dependencies {
-    implementation(project(":core:protocol"))
-    implementation(project(":core:domain"))
-    implementation(project(":core:storage"))
-    implementation(project(":core:bluetooth"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
     testImplementation(kotlin("test"))
 }

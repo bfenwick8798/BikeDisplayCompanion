@@ -1,22 +1,7 @@
 package com.bikedisplay.companion
 
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import com.bikedisplay.bluetooth.BluetoothSessionManager
+import com.bikedisplay.bluetooth.BluetoothSessionState
 import com.bikedisplay.domain.BikeGoFeature
 import com.bikedisplay.domain.BikeGoFeatureMatrix
 import com.bikedisplay.domain.NavigationInstruction
@@ -29,85 +14,65 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
-class MainActivity : ComponentActivity() {
-    private val viewModel = MainViewModel()
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            MaterialTheme {
-                Surface(modifier = Modifier.fillMaxSize()) {
-                    BikeDisplayDashboard(viewModel)
-                }
-            }
-        }
-    }
-}
-
-class MainViewModel : ViewModel() {
+class CompanionAppCoordinator {
     private val featureMatrix = BikeGoFeatureMatrix.default()
     private val navigationPipeline = NavigationPipeline()
     private val settingsStore = InMemoryAppSettingsStore()
     private val rideHistoryStore = InMemoryRideHistoryStore()
+    private val bluetoothSessionManager = BluetoothSessionManager()
 
-    private val _state = MutableStateFlow(
-        UiState(
+    private val mutableState = MutableStateFlow(
+        AppState(
             telemetry = RideTelemetry(),
             nextInstruction = navigationPipeline.currentInstruction,
             supportedFeatures = featureMatrix.supportedFeatures(),
-            appSettings = settingsStore.settings.value
+            appSettings = settingsStore.settings.value,
+            bluetoothState = bluetoothSessionManager.state.value
         )
     )
 
-    val state: StateFlow<UiState> = _state.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            settingsStore.settings.collect { settings ->
-                _state.update { current -> current.copy(appSettings = settings) }
-            }
-        }
-    }
+    val state: StateFlow<AppState> = mutableState.asStateFlow()
 
     fun onTelemetryUpdate(telemetry: RideTelemetry) {
-        _state.update { it.copy(telemetry = telemetry) }
-        viewModelScope.launch {
-            rideHistoryStore.recordTelemetry(telemetry)
-        }
+        mutableState.update { it.copy(telemetry = telemetry) }
+    }
+
+    suspend fun recordTelemetry(telemetry: RideTelemetry) {
+        rideHistoryStore.recordTelemetry(telemetry)
+        onTelemetryUpdate(telemetry)
     }
 
     fun onNavigationUpdate(instruction: NavigationInstruction) {
         navigationPipeline.updateInstruction(instruction)
-        _state.update { it.copy(nextInstruction = instruction) }
+        mutableState.update { it.copy(nextInstruction = instruction) }
+    }
+
+    suspend fun onSettingsUpdate(settings: AppSettings) {
+        settingsStore.updateSettings(settings)
+        mutableState.update { it.copy(appSettings = settings) }
+    }
+
+    fun onDiscovered(address: String) {
+        bluetoothSessionManager.onDeviceDiscovered(address)
+        mutableState.update { it.copy(bluetoothState = bluetoothSessionManager.state.value) }
+    }
+
+    fun onConnected(address: String) {
+        bluetoothSessionManager.onConnected(address)
+        mutableState.update { it.copy(bluetoothState = bluetoothSessionManager.state.value) }
+    }
+
+    fun onDisconnected(willReconnect: Boolean) {
+        bluetoothSessionManager.onDisconnected(willReconnect)
+        mutableState.update { it.copy(bluetoothState = bluetoothSessionManager.state.value) }
     }
 }
 
-data class UiState(
+data class AppState(
     val telemetry: RideTelemetry,
     val nextInstruction: NavigationInstruction,
     val supportedFeatures: List<BikeGoFeature>,
-    val appSettings: AppSettings
+    val appSettings: AppSettings,
+    val bluetoothState: BluetoothSessionState
 )
-
-@Composable
-private fun BikeDisplayDashboard(viewModel: MainViewModel) {
-    val state by viewModel.state.collectAsState()
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text("BikeDisplayCompanion", style = MaterialTheme.typography.headlineSmall)
-        Text("Speed: ${state.telemetry.speedKmh} km/h")
-        Text("Battery: ${state.telemetry.batteryPercent}%")
-        Text("Assist Level: ${state.telemetry.assistLevel}")
-        Text("Next turn: ${state.nextInstruction.maneuver}")
-        Text("Distance: ${state.nextInstruction.distanceMeters}m")
-        Text("Theme: ${state.appSettings.theme}")
-        Text("Supported features: ${state.supportedFeatures.joinToString { it.name }}")
-    }
-}
