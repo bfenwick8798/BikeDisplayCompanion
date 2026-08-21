@@ -6,7 +6,8 @@ Foundation implementation for an EKD01-UART e-bike display companion app.
 
 This repository now includes a working multi-module baseline with:
 
-- App orchestration module (`app`) coordinating Bluetooth state, telemetry, navigation, and settings.
+- Android app module (`app`) that can produce release APKs.
+- App orchestration layer (`app`) coordinating Bluetooth state, telemetry, navigation, and settings.
 - EKD01-UART protocol codec (`core/protocol`) with frame encode/decode + checksum validation.
 - Bluetooth session lifecycle model (`core/bluetooth`) with discovered/connected/reconnect/disconnected states.
 - Ride and navigation domain layer (`core/domain`) with reroute threshold logic and feature matrix.
@@ -27,7 +28,7 @@ This repository now includes a working multi-module baseline with:
 
 ## Project structure
 
-- `app/` app coordination layer and state model.
+- `app/` Android app module and app coordination state model.
 - `core/protocol/` EKD01-UART framing and command definitions.
 - `core/bluetooth/` connection session state and reconnect lifecycle model.
 - `core/domain/` ride telemetry, navigation pipeline, and feature planning model.
@@ -36,13 +37,15 @@ This repository now includes a working multi-module baseline with:
 ## Build and test
 
 ```bash
-gradle test
+./gradlew test
+./gradlew assembleRelease
 ```
 
-## Next implementation steps
+## Build APK and publish to GitHub Release
 
-1. Add Android application/UI layer and foreground Bluetooth service integration.
-2. Replace in-memory storage with Room/DataStore.
-3. Integrate map/navigation provider and route lifecycle.
-4. Add robust protocol message models for telemetry and control channels.
-5. Add instrumentation tests with real or simulated EKD01-UART devices.
+A workflow is included at `/home/runner/work/BikeDisplayCompanion/BikeDisplayCompanion/.github/workflows/release-apk.yml`.
+
+- Automatic release build: push a tag like `v0.1.0`.
+- Manual release build: run **Build and Release APK** via GitHub Actions `workflow_dispatch` and provide `tag_name`.
+
+The workflow builds `app/build/outputs/apk/release/app-release-unsigned.apk` and uploads it to the GitHub Release.
