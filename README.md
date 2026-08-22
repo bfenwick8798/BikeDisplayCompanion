@@ -48,4 +48,4 @@ A workflow is included at `/home/runner/work/BikeDisplayCompanion/BikeDisplayCom
 - Automatic release build: push a tag like `v0.1.0`.
 - Manual release build: run **Build and Release APK** via GitHub Actions `workflow_dispatch` and provide `tag_name`.
 
-The workflow builds `app/build/outputs/apk/release/app-release-unsigned.apk` and uploads it to the GitHub Release.
+The workflow generates a signing key, builds `app/build/outputs/apk/release/app-release.apk`, and uploads the signed APK to the GitHub Release.
