@@ -33,6 +33,28 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Generate release signing key
+        run: |
+          keystore_password="$(openssl rand -hex 32)"
+          key_password="$(openssl rand -hex 32)"
+          echo "::add-mask::$keystore_password"
+          echo "::add-mask::$key_password"
+          keytool -genkeypair \
+            -keystore "$RUNNER_TEMP/release.keystore" \
+            -storepass "$keystore_password" \
+            -keypass "$key_password" \
+            -alias release \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=BikeDisplayCompanion"
+          {
+            echo "RELEASE_KEYSTORE=$RUNNER_TEMP/release.keystore"
+            echo "RELEASE_KEYSTORE_PASSWORD=$keystore_password"
+            echo "RELEASE_KEY_ALIAS=release"
+            echo "RELEASE_KEY_PASSWORD=$key_password"
+          } >> "$GITHUB_ENV"
+
       - name: Build release APK
         run: ./gradlew clean test assembleRelease
 
@@ -42,4 +64,4 @@ jobs:
           tag_name: ${{ env.TAG_NAME }}
           name: BikeDisplayCompanion ${{ env.TAG_NAME }}
           generate_release_notes: true
-          files: app/build/outputs/apk/release/app-release-unsigned.apk
+          files: app/build/outputs/apk/release/app-release.apk
