@@ -35,22 +35,27 @@ jobs:
 
       - name: Generate release signing key
         run: |
+          keystore_password="$(openssl rand -hex 32)"
+          key_password="$(openssl rand -hex 32)"
+          echo "::add-mask::$keystore_password"
+          echo "::add-mask::$key_password"
           keytool -genkeypair \
             -keystore "$RUNNER_TEMP/release.keystore" \
-            -storepass github-actions \
-            -keypass github-actions \
+            -storepass "$keystore_password" \
+            -keypass "$key_password" \
             -alias release \
             -keyalg RSA \
             -keysize 2048 \
             -validity 10000 \
             -dname "CN=BikeDisplayCompanion"
+          {
+            echo "RELEASE_KEYSTORE=$RUNNER_TEMP/release.keystore"
+            echo "RELEASE_KEYSTORE_PASSWORD=$keystore_password"
+            echo "RELEASE_KEY_ALIAS=release"
+            echo "RELEASE_KEY_PASSWORD=$key_password"
+          } >> "$GITHUB_ENV"
 
       - name: Build release APK
-        env:
-          RELEASE_KEYSTORE: ${{ runner.temp }}/release.keystore
-          RELEASE_KEYSTORE_PASSWORD: github-actions
-          RELEASE_KEY_ALIAS: release
-          RELEASE_KEY_PASSWORD: github-actions
         run: ./gradlew clean test assembleRelease
 
       - name: Publish GitHub release

@@ -17,12 +17,15 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    signingConfigs {
-        create("release") {
-            storeFile = file(System.getenv("RELEASE_KEYSTORE") ?: "$rootDir/release.keystore")
-            storePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
-            keyAlias = System.getenv("RELEASE_KEY_ALIAS")
-            keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+    val releaseKeystore = System.getenv("RELEASE_KEYSTORE")
+    if (releaseKeystore != null) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(releaseKeystore)
+                storePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+            }
         }
     }
 
@@ -30,7 +33,7 @@ android {
         release {
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName(
-                if (System.getenv("RELEASE_KEYSTORE") != null) "release" else "debug"
+                if (releaseKeystore != null) "release" else "debug"
             )
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
